@@ -1,0 +1,23 @@
+# global layout set to managed tiled (default is float)
+yabai -m config layout bsp
+
+# New windows split to the left
+yabai -m config window_placement first_child
+
+#padding and gaps
+yabai -m config top_padding 10
+yabai -m config bottom_padding 10
+yabai -m config left_padding 10
+yabai -m config right_padding 10
+yabai -m config window_gap 10
+
+# make sure all windows always occupy the same space
+yabai -m config auto_balance off
+yabai -m config split_ratio 0.5
+
+# with SIP enabled
+yabai -m config window_border off
+
+# yabai -m config focus_follows_mouse autoraise
+
+

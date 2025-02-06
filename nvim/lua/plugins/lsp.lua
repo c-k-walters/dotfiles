@@ -16,7 +16,14 @@ return {
     config = function()
         local cmp = require('cmp')
         local lspconfig = require("lspconfig")
+        local luasnip = require("luasnip")
 
+        local ls = require("luasnip")
+        local s = ls.snippet                  -- Shortcut for creating a snippet
+        local t = ls.text_node                -- Text nodes for static text
+        local i = ls.insert_node              -- Insert nodes for editable regions
+        local f = ls.function_node            -- Function nodes for dynamic text
+        local rep = require("luasnip.extras").rep
 
         local cmp_lsp = require("cmp_nvim_lsp")
         local capabilities = vim.tbl_deep_extend(
@@ -25,6 +32,10 @@ return {
             vim.lsp.protocol.make_client_capabilities(),
             cmp_lsp.default_capabilities()
         )
+        local onattach = function(client, bufnr)
+            local opts = { noremap = true, silent = true, buffer = bufnr }
+            vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+        end
 
         lspconfig.sourcekit.setup({
             capabilities = cmp_lsp.default_capabilities()
@@ -38,6 +49,8 @@ return {
                 "rust_analyzer",
                 "gopls",
                 "markdown_oxide",
+                "hls",
+                "clangd",
             },
             handlers = {
                 function(server_name) -- default handler (optional)
@@ -83,6 +96,18 @@ return {
                     lspconfig.markdown_oxide.setup {
                         capabilities = capabilities,
                     }
+                end,
+                ["hls"] = function()
+                    lspconfig.hls.setup {
+                        capabilities = capabilities,
+                    }
+                end,
+                ["clangd"] = function()
+                    lspconfig.clangd.setup {
+                        capabilities = capabilities,
+                        on_attach = onattach,
+                        cmd = { "clangd", "--compile-commands-dir=build" },
+                    }
                 end
             }
         })
@@ -98,7 +123,21 @@ return {
             mapping = cmp.mapping.preset.insert({
                 ['<C-p>'] = cmp.mapping.select_prev_item(cmp_select),
                 ['<C-n>'] = cmp.mapping.select_next_item(cmp_select),
-                ['<Tab>'] = cmp.mapping.confirm({ select = true }),
+                ["<Tab>"] = cmp.mapping(function(fallback)
+                    if cmp.visible() then
+                        if luasnip.expandable() then
+                            luasnip.expand()
+                        else
+                            cmp.confirm({ select = true, })
+                        end
+                    elseif luasnip.expandable() then
+                        luasnip.expand()
+                    elseif luasnip.locally_jumpable(1) then
+                        luasnip.jump(1)
+                    else
+                        fallback()
+                    end
+                end, { "i", "s" }),
                 ['<C-Space>'] = cmp.mapping.complete(),
             }),
             sources = cmp.config.sources({
@@ -106,6 +145,16 @@ return {
                 { name = 'luasnip' }, -- For luasnip users.
             }, {
                 { name = 'buffer' },
+            })
+        })
+
+        luasnip.add_snippets("cpp", {
+            s("ifndef", {
+                t("#ifndef "), i(1, "project_file_h"),
+                t({"", "#define "}), rep(1),
+                t({"", "", ""}),
+                i(2),
+                t({"", "", "#endif", ""}),
             })
         })
 

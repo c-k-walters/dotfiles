@@ -11,6 +11,7 @@ return {
 
         treesitter.setup({
             highlight = {
+                enabled = true,
                 additional_vim_regex_highlighting = false,
             },
             indent = { endable = true },

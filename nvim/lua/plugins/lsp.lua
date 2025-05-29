@@ -1,8 +1,8 @@
 return {
     "neovim/nvim-lspconfig",
     dependencies = {
-        "williamboman/mason.nvim",
-        "williamboman/mason-lspconfig.nvim",
+        "mason-org/mason.nvim",
+        "mason-org/mason-lspconfig.nvim",
         "hrsh7th/cmp-nvim-lsp",
         "hrsh7th/cmp-buffer",
         "hrsh7th/cmp-path",
@@ -34,11 +34,12 @@ return {
         )
         local onattach = function(client, bufnr)
             local opts = { noremap = true, silent = true, buffer = bufnr }
-            vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+            vim.keymap.set("n", "<leader>gd", vim.lsp.buf.definition, opts)
         end
 
         lspconfig.sourcekit.setup({
-            capabilities = cmp_lsp.default_capabilities()
+            capabilities = cmp_lsp.default_capabilities(),
+            on_attach = onattach,
         })
 
         require("fidget").setup({})

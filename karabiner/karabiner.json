@@ -11,7 +11,8 @@
                                 "conditions": [
                                     {
                                         "bundle_identifiers": [
-                                            "^com\\.apple\\.dt\\.Xcode$"
+                                            "^com\\.apple\\.dt\\.Xcode$",
+                                            "^com\\.mitchellh\\.ghostty$"
                                         ],
                                         "type": "frontmost_application_if"
                                     }

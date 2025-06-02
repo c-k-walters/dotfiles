@@ -1,8 +1,8 @@
 return {
     "neovim/nvim-lspconfig",
     dependencies = {
-        "williamboman/mason.nvim",
-        "williamboman/mason-lspconfig.nvim",
+        "mason-org/mason.nvim",
+        "mason-org/mason-lspconfig.nvim",
         "hrsh7th/cmp-nvim-lsp",
         "hrsh7th/cmp-buffer",
         "hrsh7th/cmp-path",
@@ -32,18 +32,78 @@ return {
             vim.lsp.protocol.make_client_capabilities(),
             cmp_lsp.default_capabilities()
         )
+        local function smart_definition()
+            local params = vim.lsp.util.make_position_params()
+
+            vim.lsp.buf_request_all(0, 'textDocument/definition', params, function(err, result, ctx, _)
+                if err == nil and result and not vim.tbl.isempty(result) then
+                    vim.lsp.buf.definition()
+                else
+                    vim.lsp.buf.type_definition()
+                end
+            end)
+        end
+
         local onattach = function(client, bufnr)
             local opts = { noremap = true, silent = true, buffer = bufnr }
             vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+            vim.keymap.set("n", "gt", vim.lsp.buf.type_definition, opts)
         end
 
+
         lspconfig.sourcekit.setup({
-            capabilities = cmp_lsp.default_capabilities()
+            capabilities = cmp_lsp.default_capabilities(),
+            on_attach = onattach,
         })
 
+        -- configure diagnostic symbols in left column        
+        vim.diagnostic.config({
+            signs = {
+                text = {
+                    [vim.diagnostic.severity.ERROR] = '✘',
+                    [vim.diagnostic.severity.WARN] = '▲',
+                    [vim.diagnostic.severity.HINT] = '▻',
+                    [vim.diagnostic.severity.INFO] = 'ⓘ',
+                }
+            }
+        })
+
+        -- Highlight current symbol under cursor
+        local function highlight_symbol(event)
+            local id = vim.tbl_get(event, 'data', 'client_id')
+            local client = id and vim.lsp.get_client_by_id(id)
+            if client == nil or not client.supports_method('textDocument/documentHighlight') then
+                return
+            end
+
+            local group = vim.api.nvim_create_augroup('highlight_symbol', {clear = false})
+
+            vim.api.nvim_clear_autocmds({buffer = event.buf, group = group})
+
+            vim.api.nvim_create_autocmd({'CursorHold', 'CursorHoldI'}, {
+                group = group,
+                buffer = event.buf,
+                callback = vim.lsp.buf.document_highlight,
+            })
+
+            vim.api.nvim_create_autocmd({'CursorMoved', 'CursorMovedI'}, {
+                group = group,
+                buffer = event.buf,
+                callback = vim.lsp.buf.clear_references,
+            })
+        end
+
+        vim.api.nvim_create_autocmd('LspAttach', {
+            desc = 'Setup highlight symbol',
+            callback = highlight_symbol,
+        })
+
+
+        -- Setup language servers
         require("fidget").setup({})
         require("mason").setup()
         require("mason-lspconfig").setup({
+            automatic_enable = true,
             ensure_installed = {
                 "lua_ls",
                 "rust_analyzer",
@@ -51,28 +111,13 @@ return {
                 "markdown_oxide",
                 "hls",
                 "clangd",
+                "zls",
             },
             handlers = {
                 function(server_name) -- default handler (optional)
                     require("lspconfig")[server_name].setup {
                         capabilities = capabilities
                     }
-                end,
-
-                zls = function()
-                    lspconfig.zls.setup({
-                        root_dir = lspconfig.util.root_pattern(".git", "build.zig", "zls.json"),
-                        settings = {
-                            zls = {
-                                enable_inlay_hints = true,
-                                enable_snippets = true,
-                                warn_style = true,
-                            },
-                        },
-                    })
-                    vim.g.zig_fmt_parse_errors = 0
-                    vim.g.zig_fmt_autosave = 0
-
                 end,
                 ["lua_ls"] = function()
                     lspconfig.lua_ls.setup {
@@ -107,6 +152,13 @@ return {
                         capabilities = capabilities,
                         on_attach = onattach,
                         cmd = { "clangd", "--compile-commands-dir=build" },
+                    }
+                end,
+                ["zls"] = function()
+                    lspconfig.zls.setup {
+                        capabilities = capabilities,
+                        on_attach = onattach,
+                        root_dir = lspconfig.util.root_pattern("zls.json", "build.zig", ".git"),
                     }
                 end
             }
@@ -169,5 +221,6 @@ return {
                 prefix = "",
             },
         })
+
     end
 }
